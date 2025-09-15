@@ -28,7 +28,7 @@ Clone the repository and install the dependencies:
 
 ```pwsh
 git clone <repository-url>
-cd notification-orchestrator
+cd Node.js-Intern---Cleeng
 npm install
 ```
 
