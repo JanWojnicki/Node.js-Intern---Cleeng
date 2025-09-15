@@ -9,7 +9,7 @@ import { ZodError } from 'zod';
  * @param dnd The DND object with start and end times in 'HH:MM' format.
  * @returns True if the time is within the DND window, false otherwise.
  */
-const isWithinDnd = (timestamp: string, dnd: { start: string; end: string }): boolean => {
+export const isWithinDnd = (timestamp: string, dnd: { start: string; end: string }): boolean => {
     const eventDate = new Date(timestamp);
     // Get time in 'HH:MM' format from the event's timestamp (in UTC)
     const eventTime = eventDate.toISOString().substring(11, 16);
