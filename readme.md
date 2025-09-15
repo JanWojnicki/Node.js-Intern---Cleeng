@@ -7,31 +7,27 @@ Unit Testing: The critical "Do Not Disturb" (DND) logic is thoroughly tested usi
 Prerequisites
 Node.js (v18 or later recommended)
 npm (usually comes with Node.js)
-1. Installation
-Clone the repository and install the dependencies:
-git clone <repository-url>
-cd notification-orchestrator
-npm install
 
+1. Installation
+   Clone the repository and install the dependencies:
+   git clone <repository-url>
+   cd notification-orchestrator
+   npm install
 
 2. Running the Application
-You can run the server in two modes:
-A) Development Mode
-This uses nodemon to automatically restart the server whenever you make changes to the code.
-npm run dev
-
+   You can run the server in two modes:
+   A) Development Mode
+   This uses nodemon to automatically restart the server whenever you make changes to the code.
+   npm run dev
 
 B) Production Mode
 This builds the TypeScript code into JavaScript and then runs the compiled application.
 npm run build
 npm start
 
-
-Once started, the server will be running at http://localhost:3000.
-3. Running Unit Tests
+Once started, the server will be running at http://localhost:3000. 3. Running Unit Tests
 To run the Jest unit tests for the DND logic, use the following command:
 npm test
-
 
 You will see a pass/fail summary for all test cases in your terminal.
 📖 API Documentation
@@ -41,16 +37,15 @@ Saves or updates the notification preferences for a specific user.
 URL Params: userId=[string] (e.g., usr_123)
 Body (raw/json):
 {
-  "dnd": {
-    "start": "22:00",
-    "end": "07:00"
-  },
-  "eventSettings": {
-    "item_shipped": { "enabled": true },
-    "invoice_generated": { "enabled": false }
-  }
+"dnd": {
+"start": "22:00",
+"end": "07:00"
+},
+"eventSettings": {
+"item_shipped": { "enabled": true },
+"invoice_generated": { "enabled": false }
 }
-
+}
 
 Success Response (200 OK): { "message": "Preferences updated successfully." }
 Error Response (400 Bad Request): If the body format is invalid.
@@ -64,91 +59,252 @@ POST /events
 Receives an event and decides if a notification should be sent based on user preferences.
 Body (raw/json):
 {
-  "eventId": "evt_abcde",
-  "userId": "usr_123",
-  "eventType": "item_shipped",
-  "timestamp": "2025-09-13T23:00:00Z"
+"eventId": "evt_abcde",
+"userId": "usr_123",
+"eventType": "item_shipped",
+"timestamp": "2025-09-13T23:00:00Z"
 }
-
 
 Response Scenarios:
 202 Accepted: The notification should be sent.
 { "decision": "PROCESS_NOTIFICATION" }
 
-
 200 OK: The notification should not be sent. The reason is provided.
 // DND is active
-{ "decision": "DO_NOT_NOTIFY", "reason": "DND_ACTIVE" }
 
-// User is unsubscribed
-{ "decision": "DO_NOT_NOTIFY", "reason": "USER_UNSUBSCRIBED_FROM_EVENT" }
+# Notification Orchestrator
 
+A compact, production-ready service for managing user notification preferences and deciding whether to send notifications for incoming events.
 
-Error Response (400 Bad Request): If the event format is invalid.
-🧪 How to Test with Postman
-Here’s a step-by-step guide to testing the endpoints using Postman.
-1. Set User Preferences
-First, you need to create preferences for a user before you can test the event logic.
-Create a new request in Postman.
-Set the request type to POST.
-Enter the URL: http://localhost:3000/preferences/usr_abcde
-Go to the Body tab, select raw, and choose JSON from the dropdown.
-Paste the following JSON into the body:
+---
+
+## Table of Contents
+
+- Overview
+- Key Features
+- Quick Start
+  - Prerequisites
+  - Install
+  - Run (dev / prod)
+- API Reference
+  - Manage Preferences
+  - Process Events
+- Testing
+- Postman Examples
+- Contributing & License
+
+---
+
+## Overview
+
+This project implements an event-driven Notification Orchestrator intended for SaaS platforms. It provides:
+
+- A lightweight API to store and retrieve user notification preferences.
+- Per-user "Do Not Disturb" (DND) windows to suppress notifications during quiet hours (including overnight ranges).
+- Per-event-type subscription toggles (enable/disable specific event notifications).
+
+The codebase is written in TypeScript and includes input validation and unit tests for the core DND logic.
+
+---
+
+## Key Features
+
+- Do Not Disturb (DND) handling with correct overnight window semantics.
+- Input validation on POST endpoints using `zod`.
+- Unit tests (Jest) that cover normal and edge cases for DND logic.
+- Simple, extensible data model for event settings per user.
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+ (recommended)
+- npm
+
+### Install
+
+Clone and install dependencies:
+
+```pwsh
+git clone <repository-url>
+cd notification-orchestrator
+npm install
+```
+
+### Run (Development)
+
+```pwsh
+npm run dev
+```
+
+This runs the TypeScript code with automatic restarts on change (nodemon).
+
+### Run (Production)
+
+```pwsh
+npm run build
+npm start
+```
+
+The server listens on http://localhost:3000 by default.
+
+---
+
+## API Reference
+
+All endpoints assume JSON bodies and return JSON responses. Errors use standard HTTP status codes.
+
+### Manage Preferences
+
+#### POST /preferences/:userId
+
+Create or update a user's preferences.
+
+URL params
+
+- `userId` (string)
+
+Body example
+
+```json
 {
-  "dnd": {
-    "start": "22:00",
-    "end": "07:00"
-  },
+  "dnd": { "start": "22:00", "end": "07:00" },
   "eventSettings": {
-    "item_shipped": {
-      "enabled": true
-    },
-    "invoice_generated": {
-      "enabled": false
-    }
+    "item_shipped": { "enabled": true },
+    "invoice_generated": { "enabled": false }
   }
 }
+```
 
+Success: 200 OK
 
-Click Send. You should get a 200 OK status and a success message.
-2. Get User Preferences
-Now, let's verify that the preferences were saved correctly.
-Create a new request.
-Set the request type to GET.
-Enter the URL: http://localhost:3000/preferences/usr_abcde
-Click Send. You should get a 200 OK status and the JSON object you just saved.
-3. Process Events
-This is where you can test the different scenarios by using different JSON bodies:
-Scenario A: Notification Allowed
-(Timestamp is outside DND, and the user is subscribed)
+```json
+{ "message": "Preferences updated successfully." }
+```
+
+Errors: 400 Bad Request when payload invalid.
+
+---
+
+#### GET /preferences/:userId
+
+Retrieve saved preferences for `userId`.
+
+Success: 200 OK with JSON preferences. 404 Not Found if not present.
+
+---
+
+### Process Events
+
+#### POST /events
+
+Accepts an incoming event and returns a decision whether to notify.
+
+Body example
+
+```json
+{
+  "eventId": "evt_abcde",
+  "userId": "usr_123",
+  "eventType": "item_shipped",
+  "timestamp": "2025-09-13T23:00:00Z"
+}
+```
+
+Responses
+
+- 202 Accepted — Notification should be sent
+
+  ```json
+  { "decision": "PROCESS_NOTIFICATION" }
+  ```
+
+- 200 OK — Notification suppressed; reason provided
+
+  ```json
+  { "decision": "DO_NOT_NOTIFY", "reason": "DND_ACTIVE" }
+  ```
+
+  or
+
+  ```json
+  { "decision": "DO_NOT_NOTIFY", "reason": "USER_UNSUBSCRIBED_FROM_EVENT" }
+  ```
+
+- 400 Bad Request — Invalid payload
+
+---
+
+## Testing
+
+Run unit tests (Jest):
+
+```pwsh
+npm test
+```
+
+The project includes focused tests for the DND logic, covering overnight intervals and boundary conditions.
+
+---
+
+## Postman Examples
+
+1. Set preferences
+
+POST http://localhost:3000/preferences/usr_abcde
+
+Body
+
+```json
+{
+  "dnd": { "start": "22:00", "end": "07:00" },
+  "eventSettings": {
+    "item_shipped": { "enabled": true },
+    "invoice_generated": { "enabled": false }
+  }
+}
+```
+
+2. Get preferences
+
+GET http://localhost:3000/preferences/usr_abcde
+
+3. Process event (allowed)
+
+POST http://localhost:3000/events
+
+```json
 {
   "eventId": "evt_123",
   "userId": "usr_abcde",
   "eventType": "item_shipped",
   "timestamp": "2025-07-28T21:30:00Z"
 }
+```
 
+Expected: 202 Accepted — { "decision": "PROCESS_NOTIFICATION" }
 
-Expected Result: Status 202 Accepted and {"decision": "PROCESS_NOTIFICATION"}.
-Scenario B: Notification Blocked by DND
-(Timestamp is inside the 22:00-07:00 DND window)
+4. Process event (DND active)
+
+POST http://localhost:3000/events
+
+```json
 {
   "eventId": "evt_456",
   "userId": "usr_abcde",
   "eventType": "item_shipped",
   "timestamp": "2025-07-28T23:00:00Z"
 }
+```
 
+Expected: 200 OK — { "decision": "DO_NOT_NOTIFY", "reason": "DND_ACTIVE" }
 
-Expected Result: Status 200 OK and {"decision": "DO_NOT_NOTIFY", "reason": "DND_ACTIVE"}.
-Scenario C: Notification Blocked by User Preference
-(The user has invoice_generated disabled)
-{
-  "eventId": "evt_789",
-  "userId": "usr_abcde",
-  "eventType": "invoice_generated",
-  "timestamp": "2025-07-28T15:00:00Z"
-}
+---
 
+## Contributing & License
 
-Expected Result: Status 200 OK and {"decision": "DO_NOT_NOTIFY", "reason": "USER_UNSUBSCRIBED_FROM_EVENT"}.
+Contributions are welcome. Please open issues or pull requests for improvements. Add tests for any new behavior.
+
+Licensed under the MIT license (see LICENSE file if included).
